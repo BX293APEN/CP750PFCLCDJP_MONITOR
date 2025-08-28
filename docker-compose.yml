@@ -1,0 +1,64 @@
+# YAMLはスペース2つ
+# name: project1                            # プロジェクト名(全て小文字)
+services:                                   # 作成したいコンテナを列挙
+  linux:                                    # 作成するコンテナの名前(docker composeで管理する名前)
+    env_file: .env
+    
+    container_name: ${CONTAINER_NAME}       # 外部から見た時の名前
+    
+    # IPアドレスの確認 
+    # docker inspect --format="{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" [${CONTAINER_NAME}の値]
+
+    hostname: ${CONTAINER_NAME}             # ホスト名
+
+    build: 
+      context: ${Dockerfile_DIR}
+      dockerfile: ${Dockerfile}             # Dockerfileへの相対パス
+      args:                                 # Dockerfile内の環境変数を設定
+        WS:           ${WS}
+        USER_NAME:    ${USER_NAME}
+        PASSWORD:     ${PASSWORD}
+        ENTRY_DIR:    ${ENTRY_DIR}
+        ENTRY_POINT:  ${ENTRY_POINT}
+        VOLUME:       ${VOLUME}
+        LANG:         ${LANG}
+    
+    # image: ubuntu:25.10                   # Dockerfileが無い場合
+
+    volumes:                                # マウント
+      - ${VOLUME}:/home/${USER_NAME}/${WS}  # ホストディレクトリ: コンテナ内ディレクトリ
+
+    restart: unless-stopped                 # unless-stopped always ...
+
+    environment:                            # コンテナ内の環境変数を設定
+      - TZ=${TIME_ZONE}
+      - LANG=${LANG}
+      - TERM=xterm
+    
+    ports:                                  # ポートを接続
+      - "3493:3493"                         # ホストマシンのポート番号:コンテナのポート番号
+    
+    # depends_on:                           # コンテナ間の依存関係を定義
+    #   - db                                # 先にdbコンテナが動いていることを確認する
+
+    command:                                # サービスコンテナが起動したときに実行するコマンド
+      - /home/${USER_NAME}/${ENTRY_DIR}/${ENTRY_POINT}
+    
+    networks:
+      - docker_eth
+    
+    privileged: true                        # 全てのUSBを共有
+
+networks:
+  default:
+    external: true
+    name: bridge
+
+  docker_eth:
+    name: ${NETWORK_NAME}
+    driver: bridge
+    ipam:
+      driver: default
+      config:                               # 物理ネットワークに直接接続したい場合は実環境に合わせる
+        - subnet: ${IP_SUBNET_ADDR}/${IP_PREFIX}
+          gateway: ${IP_GATEWAY_ADDR}
